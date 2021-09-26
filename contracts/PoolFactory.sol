@@ -26,7 +26,7 @@ contract PoolFactory is Ownable, IPoolFactory {
     require(token1 != token2, "Same tokens");
     require(token1 != address(0) || token1 != address(0), "Cannot initialize pool with null address");
     require(pools[token1][token2] == address(0), "Pool with token pair already created");
-    bytes memory _initializationCalldata = abi.encodeWithSignature("initialize(IERC20,IERC20)", msg.sender, token1, token2);
+    bytes memory _initializationCalldata = abi.encodeWithSignature("initialize(address,address)", msg.sender, token1, token2);
     address newPoolAddress = address(new InitializedProxy(pool, _initializationCalldata));
     pools[token1][token2] = newPoolAddress;
     pools[token2][token1] = newPoolAddress; // populate in both ways to ensure reachability

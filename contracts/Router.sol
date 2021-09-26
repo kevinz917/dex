@@ -2,9 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./interfaces/ISwapPool.sol";
+import "./interfaces/IRouter.sol";
 import "./interfaces/IPoolFactory.sol";
 
-contract Router {
+contract Router is IRouter {
   address public factory;
 
   constructor(address _factory) {
@@ -13,18 +15,45 @@ contract Router {
 
   event Deposit(address sender, address _token1, address _token2, uint256 tokenAmount1, uint256 tokenAmount2);
 
-  // user sends equal amount of each token
+  function quoteAsset(
+    uint256 _amount1,
+    uint256 _reserve1,
+    uint256 _reserve2
+  ) public pure override returns (uint256 _amount2) {
+    _amount2 = (_amount1 * _reserve2) / _reserve1; // add safe math
+  }
+
+  function calculateLiquidity(
+    address _poolAddress,
+    address _token1,
+    address _token2,
+    uint256 _targetAmount1,
+    uint256 _targetAmount2
+  ) public override returns (uint256 _amount1, uint256 _amount2) {
+    (uint256 _reserve1, _uint256 _reserve2) = ISwapPool(_poolAddress).getReserve(); // fetch how much pool has stored as reserve from pool contracts
+    uint256 _bAmount = quoteAsset(_amount1, _reserve1, _reserve2);
+    // if the calculated amount for asset B exceeds what you have
+    if (_bAmount > _targetAmount2) {
+      uint256 _aAmount = quoteAsset(_amount2, _reserve2, _reserve1);
+      require(_aAmount < _targetAmount1, "Inssuficient liquidity");
+      (_amount1, _amount2) = (_aAmount, _targetAmount2);
+    } else {
+      (_amount1, _amount2) = (_targetAmount1, _bAmount);
+    }
+  }
+
+  // Deposit liquidity: user sends equal amount of each token
   function deposit(
     address _token1,
     address _token2,
     uint256 _tokenAmount1,
     uint256 _tokenAmount2
-  ) public payable {
+  ) public payable override {
     require(IPoolFactory(factory).pools(_token1, _token2) != address(0), "Pool doesn't exist");
-    // how to get exchange rate
-    // require(token1.balanceOf(msg.sender) > exchangeRate * msg.value); // calculate exchange rate, make sure user has address
-    IERC20(_token1).transferFrom(msg.sender, address(this), _tokenAmount1);
-    IERC20(_token2).transferFrom(msg.sender, address(this), _tokenAmount2);
+    address poolAddress = IPoolFactory(factory).pools(_token1, _token2);
+    (uint256 _amount1, uint256 _amount2) = calculateLiquidity(poolAddress, _token1, _token2, _tokenAmount1, _tokenAmount2);
+    IERC20(_token1).transferFrom(msg.sender, poolAddress, _amount1); // why does Uni use a specia abi.encode function for safe transfer of assets?
+    IERC20(_token2).transferFrom(msg.sender, poolAddress, _amount2);
     // add LP reward
     emit Deposit(msg.sender, _token1, _token2, _tokenAmount1, _tokenAmount2);
   }
