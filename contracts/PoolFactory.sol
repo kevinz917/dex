@@ -7,27 +7,34 @@ import "./InitializedProxy.sol";
 import "./SwapPool.sol";
 
 contract PoolFactory is Ownable {
-  mapping(address => address) public pools; // mapping from token address to pool contract address
+  mapping(address => mapping(address => address)) public pools; // track token pairs both ways
   uint256 public poolCount; // count of all swap pool
 
   address public pool; // address of base pool contract
+  uint256 public fee; // transaction fee for all pools
 
-  event PoolCreated(IERC20 token1, IERC20 token2, address pool);
-
-  // how do you track token pool pairs
+  event PoolCreated(address token1, address token2, address pool);
 
   constructor() {
     transferOwnership(msg.sender);
-    pool = address(new SwapPool());
+    pool = address(new SwapPool(address(this)));
   }
 
   // create a swap pool betweeb any token and
-  function createPool(IERC20 token1, IERC20 token2) external {
+  function createPool(address token1, address token2) external {
     require(token1 != token2, "Same tokens");
+    require(token1 != address(0) || token1 != address(0), "Cannot initialize pool with null address");
+    require(pools[token1][token2] == address(0), "Pool with token pair already created");
     bytes memory _initializationCalldata = abi.encodeWithSignature("initialize(IERC20,IERC20)", msg.sender, token1, token2);
     address newPoolAddress = address(new InitializedProxy(pool, _initializationCalldata));
-    emit PoolCreated(token1, token2, newPoolAddress);
+    pools[token1][token2] = newPoolAddress;
+    pools[token2][token1] = newPoolAddress; // populate in both ways to ensure reachability
+    poolCount++; // is a better alternative to create a list of all pairs? (See Sushi)
 
-    pools[tokenAddress] = newPoolAddress;
+    emit PoolCreated(token1, token2, newPoolAddress);
+  }
+
+  function setFee(uint256 _fee) public onlyOwner {
+    fee = _fee;
   }
 }
