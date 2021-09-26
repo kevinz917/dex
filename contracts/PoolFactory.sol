@@ -3,11 +3,12 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/IPoolFactory.sol";
 import "./InitializedProxy.sol";
 import "./SwapPool.sol";
 
-contract PoolFactory is Ownable {
-  mapping(address => mapping(address => address)) public pools; // track token pairs both ways
+contract PoolFactory is Ownable, IPoolFactory {
+  mapping(address => mapping(address => address)) public override pools; // track token pairs both ways
   uint256 public poolCount; // count of all swap pool
 
   address public pool; // address of base pool contract
@@ -21,7 +22,7 @@ contract PoolFactory is Ownable {
   }
 
   // create a swap pool betweeb any token and
-  function createPool(address token1, address token2) external {
+  function createPool(address token1, address token2) external override {
     require(token1 != token2, "Same tokens");
     require(token1 != address(0) || token1 != address(0), "Cannot initialize pool with null address");
     require(pools[token1][token2] == address(0), "Pool with token pair already created");
@@ -34,7 +35,7 @@ contract PoolFactory is Ownable {
     emit PoolCreated(token1, token2, newPoolAddress);
   }
 
-  function setFee(uint256 _fee) public onlyOwner {
+  function setFee(uint256 _fee) public override onlyOwner {
     fee = _fee;
   }
 }
