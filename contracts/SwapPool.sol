@@ -24,7 +24,7 @@ contract SwapPool is ISwapPool {
   }
 
   function initialize(address _token1, address _token2) public override {
-    require(hasInitialized == false, "Pool already initialized");
+    require(hasInitialized == false, "Pool initialized before");
     token1 = _token1;
     token2 = _token2;
   }
