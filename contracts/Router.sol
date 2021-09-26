@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./interfaces/IPoolFactory.sol";
 import "./interfaces/ISwapPool.sol";
 import "./interfaces/IRouter.sol";
-import "./interfaces/IPoolFactory.sol";
 
 contract Router is IRouter {
   address public factory;
@@ -25,12 +25,10 @@ contract Router is IRouter {
 
   function calculateLiquidity(
     address _poolAddress,
-    address _token1,
-    address _token2,
     uint256 _targetAmount1,
     uint256 _targetAmount2
-  ) public override returns (uint256 _amount1, uint256 _amount2) {
-    (uint256 _reserve1, _uint256 _reserve2) = ISwapPool(_poolAddress).getReserve(); // fetch how much pool has stored as reserve from pool contracts
+  ) public view override returns (uint256 _amount1, uint256 _amount2) {
+    (uint256 _reserve1, uint256 _reserve2) = ISwapPool(_poolAddress).getReserve(); // fetch how much pool has stored as reserve from pool contracts
     uint256 _bAmount = quoteAsset(_amount1, _reserve1, _reserve2);
     // if the calculated amount for asset B exceeds what you have
     if (_bAmount > _targetAmount2) {
@@ -51,7 +49,7 @@ contract Router is IRouter {
   ) public payable override {
     require(IPoolFactory(factory).pools(_token1, _token2) != address(0), "Pool doesn't exist");
     address poolAddress = IPoolFactory(factory).pools(_token1, _token2);
-    (uint256 _amount1, uint256 _amount2) = calculateLiquidity(poolAddress, _token1, _token2, _tokenAmount1, _tokenAmount2);
+    (uint256 _amount1, uint256 _amount2) = calculateLiquidity(poolAddress, _tokenAmount1, _tokenAmount2);
     IERC20(_token1).transferFrom(msg.sender, poolAddress, _amount1); // why does Uni use a specia abi.encode function for safe transfer of assets?
     IERC20(_token2).transferFrom(msg.sender, poolAddress, _amount2);
     // add LP reward

@@ -9,8 +9,7 @@ interface IRouter {
   ) external returns (uint256 _amount2);
 
   function calculateLiquidity(
-    address _token1,
-    address _token2,
+    address _poolAddress,
     uint256 _targetAmount1,
     uint256 _targetAmount2
   ) external returns (uint256 _amount1, uint256 _amount2);
